@@ -1,44 +1,53 @@
-use cpal::{StreamConfig, default_host};
+use cpal::{Stream, StreamConfig};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::platform::{HostId, host_from_id};
 
-use crate::*;
-
-pub fn start_audio(audio_params: Arc<Mutex<AudioParams>>) {
-    let host = default_host();
+pub fn start_audio() -> Stream {
+    eprintln!("starting audio");
+    let host = host_from_id(HostId::Jack).expect("no jack");
     let device = host.default_output_device()
         .expect("no output device available");
-    let mut supported_configs_range = device.supported_output_configs()
-        .expect("error while querying configs");
-    let supported_config = supported_configs_range.next()
-        .expect("no supported config?!")
-        .with_max_sample_rate();
-    let mut config: StreamConfig = supported_config.into();
-    config.channels = 1;
+    eprintln!("{}", device.name().unwrap());
+
+    let default_config = device.default_output_config().unwrap();
+    println!("Default config: {:?}", default_config);
+    let derived_config: StreamConfig = default_config.into();
+    println!("Derived config: {:?}", derived_config);
+    /*
+    let config = StreamConfig {
+        channels: 1,
+        sample_rate: SampleRate(48000),
+        buffer_size: BufferSize::Fixed(1024),
+    };
+    println!("Constructed config: {:?}", config);
+    */
+    let config = derived_config;
     let sample_rate = config.sample_rate.0 as f32;
-    let mut phase = 0usize;
-    let mut ticks = 0usize;
+    let channels = config.channels as usize;
+
+    // Produce a sinusoid of maximum amplitude.
+    let mut sample_clock = 0f32;
+    let mut next_value = move || {
+        sample_clock = (sample_clock + 1.0) % sample_rate;
+        (sample_clock * 440.0 * 2.0 * std::f32::consts::PI / sample_rate).sin()
+    };
+
     let stream = device.build_output_stream(
         &config,
-        move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-            let guard = audio_params.lock().unwrap();
-            let ap: AudioParams = (*guard).clone();
-            drop(guard);
-            let period = (sample_rate / ap.frequency).floor() as usize;
-            let half_period = period / 2;
-            if ticks % 100 == 0 {
-                eprintln!("{} {} {}", ticks, period, phase);
+        move |data: &mut[f32], _: &cpal::OutputCallbackInfo| {
+            for frame in data.chunks_mut(channels) {
+                let value = next_value();
+                for sample in frame {
+                    *sample = value;
+                }
             }
-            ticks += 1;
-            for (i, sample) in data.iter_mut().enumerate() {
-                let positive = (i + phase) % period > half_period;
-                *sample = if positive { ap.amplitude } else { -ap.amplitude };
-            }
-            phase = (phase + data.len()) % period;
         },
-        move |err| {
+        |err| {
             eprintln!("audio output error: {:?}", err);
         },
-        None // None=blocking, Some(Duration)=timeout
+        None, // None=blocking, Some(Duration)=timeout
     ).expect("could not build stream");
+    eprintln!("starting stream");
     stream.play().expect("could not play stream");
+    stream
 }

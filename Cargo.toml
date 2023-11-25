@@ -6,5 +6,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cpal = "0.15.2"
-iced = "0.10.0"
+cpal = { version = "0.15.2", features = ["jack"] }
+#iced = "0.10.0"
