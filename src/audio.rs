@@ -1,6 +1,6 @@
-use cpal::{SampleFormat, Stream, StreamConfig, default_host};
+use cpal::platform::{host_from_id, HostId};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::platform::{HostId, host_from_id};
+use cpal::{default_host, SampleFormat, Stream, StreamConfig};
 
 use crate::*;
 
@@ -11,15 +11,17 @@ pub struct AudioParams {
 
 impl Default for AudioParams {
     fn default() -> Self {
-        Self { frequency: 1000.0, amplitude: 0.5 }
+        Self {
+            frequency: 1000.0,
+            amplitude: 0.5,
+        }
     }
 }
 
 // Much of this function is borrowed from the `beep`
 // example in the CPAL crate.
 pub fn start_audio(params: Arc<Mutex<AudioParams>>) -> anyhow::Result<Stream> {
-    let host = host_from_id(HostId::Jack)
-        .unwrap_or_else(|_| default_host());
+    let host = host_from_id(HostId::Jack).unwrap_or_else(|_| default_host());
     let device = host
         .default_output_device()
         .ok_or(anyhow::anyhow!("could not find default output device"))?;
