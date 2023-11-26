@@ -8,4 +8,4 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.75"
 cpal = { version = "0.15.2", features = ["jack"] }
-#iced = "0.10.0"
+iced = "0.10.0"

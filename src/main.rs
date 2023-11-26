@@ -1,14 +1,17 @@
 mod audio;
+mod gui;
 
 pub use std::sync::{Arc, Mutex};
 
 pub use anyhow::*;
 
-use audio::*;
+pub use audio::*;
+pub use gui::*;
 
 fn main() {
-    eprintln!("starting");
-    let params = Arc::new(Mutex::new(AudioParams::default()));
-    let _stream = start_audio(params).unwrap();
-    std::thread::sleep(std::time::Duration::from_millis(10000));
+    let audio_params = Arc::new(Mutex::new(AudioParams::default()));
+    let gui_params = Arc::clone(&audio_params);
+    // XXX must hold stream to keep audio playing.
+    let _stream = start_audio(audio_params).unwrap();
+    start_gui(gui_params).unwrap();
 }
