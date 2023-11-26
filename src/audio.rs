@@ -39,7 +39,7 @@ pub fn start_audio(params: Arc<Mutex<AudioParams>>) -> anyhow::Result<Stream> {
 
         let params = params.lock().unwrap();
         let f = params.frequency;
-        let a = params.amplitude;
+        let a = ((11.0f32).powf(params.amplitude) - 1.0) / 10.0;
         drop(params);
 
         for (i, frame) in data.chunks_mut(channels).enumerate() {
