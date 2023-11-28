@@ -9,3 +9,4 @@ edition = "2021"
 anyhow = "1.0.75"
 cpal = { version = "0.15.2", features = ["jack"] }
 iced = "0.10.0"
+#iced = { path = "/local/src/old/iced" }
