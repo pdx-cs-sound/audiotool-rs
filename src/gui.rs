@@ -7,8 +7,8 @@ use crate::*;
 
 #[derive(Debug, Clone)]
 enum AudioMessage {
-    SetFrequency(u16),
-    SetAmplitude(u16),
+    SetFrequency(f32),
+    SetAmplitude(f32),
 }
 
 struct AudioSettings(Arc<Mutex<AudioParams>>);
@@ -31,31 +31,34 @@ impl Application for AudioSettings {
         let mut audio_params = self.0.lock().unwrap();
         match message {
             AudioMessage::SetAmplitude(a) => {
-                audio_params.amplitude = a as f32 / 1000.0;
+                audio_params.amplitude = a;
             }
             AudioMessage::SetFrequency(f) => {
-                audio_params.frequency = f as f32;
+                audio_params.frequency = f;
             }
         }
         Command::none()
     }
 
     fn view(&self) -> Element<Self::Message> {
-        let a_slider = vertical_slider(
-            0..=1000,
-            0,
-            AudioMessage::SetAmplitude,
-        ).step(10);
+        let audio_params = self.0.lock().unwrap();
+        let a = audio_params.amplitude;
+        let f = audio_params.frequency;
+        drop(audio_params);
 
-        let f_slider = vertical_slider(
-            0..=22_000,
-            1000,
-            AudioMessage::SetFrequency,
-        ).step(100);
+        let a_slider = vertical_slider((0.0)..=1.0, a, AudioMessage::SetAmplitude).step(0.01);
+
+        let f_slider = vertical_slider((0.0)..=22_000.0, f, AudioMessage::SetFrequency).step(100.0);
 
         let contents = row![
-            container(a_slider).width(Length::Fill).height(400).center_x(),
-            container(f_slider).width(Length::Fill).height(400).center_x(),
+            container(a_slider)
+                .width(Length::Fill)
+                .height(400)
+                .center_x(),
+            container(f_slider)
+                .width(Length::Fill)
+                .height(400)
+                .center_x(),
         ];
         container(contents)
             .width(150)
@@ -69,7 +72,7 @@ impl Application for AudioSettings {
 pub fn start_gui(params: Arc<Mutex<AudioParams>>) -> anyhow::Result<()> {
     let settings = Settings {
         window: window::Settings {
-            size: (150,400),
+            size: (150, 400),
             resizable: true,
             decorations: true,
             ..window::Settings::default()
