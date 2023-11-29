@@ -55,6 +55,22 @@ fn test_keys_freqs() {
     }
 }
 
+pub fn db_to_amplitude(d: Option<i16>) -> f32 {
+    match d {
+        None => 0.0,
+        // 20 * log10(a) = d
+        // (d / 20) = log10(a)
+        // 10**(d / 20) = a
+        Some(d) => (10.0f32).powf(d as f32 * (1.0 / 20.0)),
+    }
+}
+
+#[test]
+fn test_db_to_amplitude() {
+    assert_eq!(0.0, db_to_amplitude(None));
+    assert!((db_to_amplitude(Some(0)) - 1.0).abs() <= 0.01);
+}
+
 // Much of this function is borrowed from the `beep`
 // example in the CPAL crate.
 pub fn start_audio() -> anyhow::Result<(Stream, Arc<Mutex<AudioParams>>)> {
@@ -79,13 +95,7 @@ pub fn start_audio() -> anyhow::Result<(Stream, Arc<Mutex<AudioParams>>)> {
 
         let params = params.lock().unwrap();
         let f = key_to_freq(params.frequency);
-        let a = match params.amplitude {
-            None => 0.0,
-            // 20 * log10(a) = d
-            // (d / 20) = log10(a)
-            // 10**(d / 20) = a
-            Some(d) => (10.0f32).powf(d as f32 * (1.0 / 20.0)),
-        };
+        let a = db_to_amplitude(params.amplitude);
         drop(params);
 
         for (i, frame) in data.chunks_mut(channels).enumerate() {
