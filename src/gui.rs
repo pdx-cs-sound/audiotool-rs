@@ -1,4 +1,5 @@
 use iced::executor;
+use iced::font::{Font, Weight};
 use iced::widget::{row, column, container, vertical_slider, text};
 use iced::window;
 use iced::{Application, Command, Element, Length, Settings, Theme};
@@ -122,6 +123,8 @@ impl Application for AudioSettings {
 }
 
 pub fn start_gui(params: Arc<Mutex<AudioParams>>) -> anyhow::Result<()> {
+    let mut default_font = Font::with_name("Noto Sans Mono");
+    default_font.weight = Weight::Bold;
     let settings = Settings {
         window: window::Settings {
             size: (150, 420),
@@ -129,6 +132,7 @@ pub fn start_gui(params: Arc<Mutex<AudioParams>>) -> anyhow::Result<()> {
             decorations: true,
             ..window::Settings::default()
         },
+        default_font,
         ..Settings::with_flags(params)
     };
     AudioSettings::run(settings)?;
