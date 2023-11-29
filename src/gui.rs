@@ -5,10 +5,12 @@ use iced::{Application, Command, Element, Length, Settings, Theme};
 
 use crate::*;
 
+const MUTE: i16 = -61;
+
 #[derive(Debug, Clone)]
 enum AudioMessage {
-    SetFrequency(f32),
-    SetAmplitude(f32),
+    SetFrequency(i16),
+    SetAmplitude(i16),
 }
 
 struct AudioSettings(Arc<Mutex<AudioParams>>);
@@ -31,7 +33,10 @@ impl Application for AudioSettings {
         let mut audio_params = self.0.lock().unwrap();
         match message {
             AudioMessage::SetAmplitude(a) => {
-                audio_params.amplitude = a;
+                audio_params.amplitude = match a {
+                    MUTE => None,
+                    a => Some(a),
+                };
             }
             AudioMessage::SetFrequency(f) => {
                 audio_params.frequency = f;
@@ -42,13 +47,16 @@ impl Application for AudioSettings {
 
     fn view(&self) -> Element<Self::Message> {
         let audio_params = self.0.lock().unwrap();
-        let a = audio_params.amplitude;
+        let a = match audio_params.amplitude {
+            None => MUTE,
+            Some(a) => a,
+        };
         let f = audio_params.frequency;
+        let (f_lo, f_hi) = audio_params.freq_slider_range();
         drop(audio_params);
 
-        let a_slider = vertical_slider((0.0)..=1.0, a, AudioMessage::SetAmplitude).step(0.01);
-
-        let f_slider = vertical_slider((0.0)..=22_000.0, f, AudioMessage::SetFrequency).step(100.0);
+        let a_slider = vertical_slider(MUTE..=0, a, AudioMessage::SetAmplitude).step(1);
+        let f_slider = vertical_slider(f_lo..=f_hi, f, AudioMessage::SetFrequency).step(1);
 
         let contents = row![
             container(a_slider)
