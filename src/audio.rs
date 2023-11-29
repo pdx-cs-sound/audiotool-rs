@@ -71,6 +71,56 @@ fn test_db_to_amplitude() {
     assert!((db_to_amplitude(Some(0)) - 1.0).abs() <= 0.01);
 }
 
+pub fn key_note_name(key: i16) -> &'static str {
+    let note_names = [
+        "A",
+        "B♭",
+        "B",
+        "C",
+        "D♭",
+        "D",
+        "E♭",
+        "E",
+        "F",
+        "F♯",
+        "G",
+        "A♭",
+    ];
+    let index = (key as usize + 12 - (69 % 12)) % 12;
+    note_names[index]
+}
+
+#[test]
+fn test_key_note_name() {
+    let key_names = [
+        (31, "G"),
+        (69, "A"),
+        (84, "C"),
+    ];
+    for (key, name) in key_names {
+        assert_eq!(key_note_name(key), name);
+    }
+}
+
+pub fn key_note_octave(key: i16) -> i16 {
+    key / 12 - 1
+}
+
+#[test]
+fn test_key_note_octave() {
+    let key_octaves = [
+        (47, 2),
+        (48, 3),
+        (71, 4),
+        (72, 5),
+        (73, 5),
+    ];
+    for (key, octave) in key_octaves {
+        assert_eq!(key_note_octave(key), octave, "{key} {octave}");
+    }
+}
+
+
 // Much of this function is borrowed from the `beep`
 // example in the CPAL crate.
 pub fn start_audio() -> anyhow::Result<(Stream, Arc<Mutex<AudioParams>>)> {

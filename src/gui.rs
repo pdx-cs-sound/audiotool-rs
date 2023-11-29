@@ -1,5 +1,5 @@
 use iced::executor;
-use iced::widget::*;
+use iced::widget::{row, column, container, vertical_slider, text};
 use iced::window;
 use iced::{Application, Command, Element, Length, Settings, Theme};
 
@@ -47,30 +47,74 @@ impl Application for AudioSettings {
 
     fn view(&self) -> Element<Self::Message> {
         let audio_params = self.0.lock().unwrap();
-        let a = match audio_params.amplitude {
-            None => MUTE,
-            Some(a) => a,
-        };
+        let a0 = audio_params.amplitude;
         let f = audio_params.frequency;
         let (f_lo, f_hi) = audio_params.freq_slider_range();
         drop(audio_params);
+        let a = match a0 {
+            None => MUTE,
+            Some(a) => a,
+        };
 
         let a_slider = vertical_slider(MUTE..=0, a, AudioMessage::SetAmplitude).step(1);
-        let f_slider = vertical_slider(f_lo..=f_hi, f, AudioMessage::SetFrequency).step(1);
-
-        let contents = row![
+        let a_dbfs = match a0 {
+            None => "MUTE".to_string(),
+            Some(d) => format!("{d} dBFS"),
+        };
+        let a_dbfs_text = text(a_dbfs);
+        let a_amplitude_text = text(format!("{:0.3}", db_to_amplitude(a0)));
+        let a_column = column![
             container(a_slider)
                 .width(Length::Fill)
-                .height(400)
+                .height(340)
                 .center_x(),
+            container(a_dbfs_text)
+                .width(Length::Fill)
+                .height(40)
+                .center_x(),
+            container(a_amplitude_text)
+                .width(Length::Fill)
+                .height(40)
+                .center_x(),
+        ];
+
+        let f_slider = vertical_slider(f_lo..=f_hi, f, AudioMessage::SetFrequency).step(1);
+        let f_keynote = format!(
+            "{} {}{}",
+            f,
+            key_note_name(f),
+            key_note_octave(f),
+        );
+        let f_keynote_text = text(f_keynote);
+        let f_freq_text = text(format!("{:0.1} Hz", key_to_freq(f)));
+        let f_column = column![
             container(f_slider)
                 .width(Length::Fill)
-                .height(400)
+                .height(340)
+                .center_x(),
+            container(f_keynote_text)
+                .width(Length::Fill)
+                .height(40)
+                .center_x(),
+            container(f_freq_text)
+                .width(Length::Fill)
+                .height(40)
+                .center_x(),
+        ];
+
+        let contents = row![
+            container(a_column)
+                .width(Length::Fill)
+                .height(420)
+                .center_x(),
+            container(f_column)
+                .width(Length::Fill)
+                .height(420)
                 .center_x(),
         ];
         container(contents)
             .width(150)
-            .height(400)
+            .height(Length::Fill)
             .center_x()
             .center_y()
             .into()
@@ -80,7 +124,7 @@ impl Application for AudioSettings {
 pub fn start_gui(params: Arc<Mutex<AudioParams>>) -> anyhow::Result<()> {
     let settings = Settings {
         window: window::Settings {
-            size: (150, 400),
+            size: (150, 420),
             resizable: true,
             decorations: true,
             ..window::Settings::default()
