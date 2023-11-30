@@ -1,5 +1,5 @@
 use iced::executor;
-use iced::font::{Font, Weight};
+use iced::font::{self, Font, Weight};
 use iced::widget::{row, column, container, vertical_slider, text};
 use iced::window;
 use iced::{Application, Command, Element, Length, Settings, Theme};
@@ -12,6 +12,7 @@ const MUTE: i16 = -61;
 enum AudioMessage {
     SetFrequency(i16),
     SetAmplitude(i16),
+    FontLoaded(Result<(), font::Error>),
 }
 
 struct AudioSettings(Arc<Mutex<AudioParams>>);
@@ -23,7 +24,11 @@ impl Application for AudioSettings {
     type Flags = Arc<Mutex<AudioParams>>;
 
     fn new(flags: Self::Flags) -> (Self, Command<Self::Message>) {
-        (Self(flags), Command::none())
+        let flags = Self(flags);
+        let command = font::load(
+            include_bytes!("../assets/fonts/NotoSansMono-Bold.ttf").as_slice()
+        ).map(<Self::Message>::FontLoaded);
+        (flags, command)
     }
 
     fn title(&self) -> String {
@@ -41,6 +46,9 @@ impl Application for AudioSettings {
             }
             AudioMessage::SetFrequency(f) => {
                 audio_params.frequency = f;
+            }
+            AudioMessage::FontLoaded(result) => {
+                result.unwrap();
             }
         }
         Command::none()
