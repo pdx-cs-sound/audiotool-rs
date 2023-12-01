@@ -135,7 +135,9 @@ pub fn start_audio() -> anyhow::Result<(Stream, Arc<Mutex<AudioParams>>)> {
     let sample_rate = config.sample_rate.0 as f32;
     let channels = config.channels as usize;
 
-    let params = Arc::new(Mutex::new(AudioParams::new(sample_rate)));
+    let audio_params = AudioParams::new(sample_rate);
+    let mut amplitude_was = db_to_amplitude(audio_params.amplitude);
+    let params = Arc::new(Mutex::new(audio_params));
     let dup_params = Arc::clone(&params);
 
     // Produce a block of sinusoids with given parameters.
@@ -143,20 +145,28 @@ pub fn start_audio() -> anyhow::Result<(Stream, Arc<Mutex<AudioParams>>)> {
     let fill_block = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
         use std::f32::consts::PI;
 
+        let ndata = data.len();
+        let nsamples = ndata / channels;
+
         let params = params.lock().unwrap();
         let f = key_to_freq(params.frequency);
-        let a = db_to_amplitude(params.amplitude);
+        let amplitude_is = db_to_amplitude(params.amplitude);
         drop(params);
 
+        let da = (amplitude_is - amplitude_was) * 10.0 / sample_rate;
+        let mut a = amplitude_was;
         for (i, frame) in data.chunks_mut(channels).enumerate() {
             let t = sample_clock + i as f32;
             let y = a * (t * f * 2.0 * PI / sample_rate).sin();
             for s in frame {
                 *s = y;
             }
+            if da > 0.0 && a < amplitude_is || da < 0.0 && a > amplitude_is {
+                a += da;
+            }
         }
+        amplitude_was = a;
 
-        let nsamples = data.len() / channels;
         sample_clock = (sample_clock + nsamples as f32) % sample_rate;
     };
 
