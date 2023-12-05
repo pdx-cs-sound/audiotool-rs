@@ -137,6 +137,7 @@ pub fn start_audio() -> anyhow::Result<(Stream, Arc<Mutex<AudioParams>>)> {
 
     let audio_params = AudioParams::new(sample_rate);
     let mut amplitude_was = db_to_amplitude(audio_params.amplitude);
+    let mut frequency_was = key_to_freq(audio_params.frequency);
     let params = Arc::new(Mutex::new(audio_params));
     let dup_params = Arc::clone(&params);
 
@@ -149,23 +150,30 @@ pub fn start_audio() -> anyhow::Result<(Stream, Arc<Mutex<AudioParams>>)> {
         let nsamples = ndata / channels;
 
         let params = params.lock().unwrap();
-        let f = key_to_freq(params.frequency);
+        let frequency_is = key_to_freq(params.frequency);
         let amplitude_is = db_to_amplitude(params.amplitude);
         drop(params);
 
         let da = (amplitude_is - amplitude_was) * 10.0 / sample_rate;
         let mut a = amplitude_was;
+        let df = (frequency_is - frequency_was) * 10.0 / sample_rate;
+        let mut f = frequency_was;
         for (i, frame) in data.chunks_mut(channels).enumerate() {
-            let t = sample_clock + i as f32;
-            let y = a * (t * f * 2.0 * PI / sample_rate).sin();
+            let ts = sample_clock + i as f32;
+            let t = ts / sample_rate;
+            let y = a * (2.0 * PI * f * t).sin();
             for s in frame {
                 *s = y;
             }
             if da > 0.0 && a < amplitude_is || da < 0.0 && a > amplitude_is {
                 a += da;
             }
+            if df > 0.0 && f < frequency_is || df < 0.0 && f > frequency_is {
+                f += df;
+            }
         }
         amplitude_was = a;
+        frequency_was = f;
 
         sample_clock = (sample_clock + nsamples as f32) % sample_rate;
     };
