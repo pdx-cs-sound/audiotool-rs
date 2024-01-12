@@ -136,13 +136,10 @@ pub fn start_audio() -> anyhow::Result<(Stream, Arc<Mutex<AudioParams>>)> {
     let channels = config.channels as usize;
 
     let audio_params = AudioParams::new(sample_rate);
-    let mut amplitude_was = db_to_amplitude(audio_params.amplitude);
-    let mut frequency_was = key_to_freq(audio_params.frequency);
     let params = Arc::new(Mutex::new(audio_params));
-    let dup_params = Arc::clone(&params);
+    let returned_params = Arc::clone(&params);
 
-    // Produce a block of sinusoids with given parameters.
-    let mut sample_clock = 0f32;
+    let mut t = 0.0;
     let fill_block = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
         use std::f32::consts::PI;
 
@@ -150,32 +147,18 @@ pub fn start_audio() -> anyhow::Result<(Stream, Arc<Mutex<AudioParams>>)> {
         let nsamples = ndata / channels;
 
         let params = params.lock().unwrap();
-        let frequency_is = key_to_freq(params.frequency);
-        let amplitude_is = db_to_amplitude(params.amplitude);
+        let param_f = key_to_freq(params.frequency);
+        let param_a = db_to_amplitude(params.amplitude);
         drop(params);
 
-        let da = (amplitude_is - amplitude_was) * 10.0 / sample_rate;
-        let mut a = amplitude_was;
-        let df = (frequency_is - frequency_was) * 10.0 / sample_rate;
-        let mut f = frequency_was;
         for (i, frame) in data.chunks_mut(channels).enumerate() {
-            let ts = sample_clock + i as f32;
-            let t = ts / sample_rate;
-            let y = a * (2.0 * PI * f * t).sin();
+            let t0 = t + i as f32 / sample_rate;
+            let y = param_a * (2.0 * PI * param_f * t0).sin();
             for s in frame {
                 *s = y;
             }
-            if da > 0.0 && a < amplitude_is || da < 0.0 && a > amplitude_is {
-                a += da;
-            }
-            if df > 0.0 && f < frequency_is || df < 0.0 && f > frequency_is {
-                f += df;
-            }
         }
-        amplitude_was = a;
-        frequency_was = f;
-
-        sample_clock = (sample_clock + nsamples as f32) % sample_rate;
+        t += nsamples as f32 / sample_rate;
     };
 
     let stream = device.build_output_stream(
@@ -187,5 +170,5 @@ pub fn start_audio() -> anyhow::Result<(Stream, Arc<Mutex<AudioParams>>)> {
         None, // None=blocking, Some(Duration)=timeout
     )?;
     stream.play()?;
-    Ok((stream, dup_params))
+    Ok((stream, returned_params))
 }
