@@ -144,7 +144,7 @@ pub fn start_audio() -> anyhow::Result<(Stream, Arc<Mutex<AudioParams>>)> {
         use std::f32::consts::PI;
 
         let ndata = data.len();
-        let nsamples = ndata / channels;
+        let nframes = ndata / channels;
 
         let params = params.lock().unwrap();
         let param_f = key_to_freq(params.frequency);
@@ -158,7 +158,7 @@ pub fn start_audio() -> anyhow::Result<(Stream, Arc<Mutex<AudioParams>>)> {
                 *s = y;
             }
         }
-        t += nsamples as f32 / sample_rate;
+        t += nframes as f32 / sample_rate;
     };
 
     let stream = device.build_output_stream(
